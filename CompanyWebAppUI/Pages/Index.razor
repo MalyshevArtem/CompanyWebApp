@@ -1,0 +1,354 @@
+﻿@page "/"
+
+@inject DatabaseAccess access
+@inject UserSessionService sessionService
+@inject NavigationManager navigation
+
+<PageTitle>Main</PageTitle>
+
+<MudGrid Class="mt-10 mb-10">
+    <MudItem xs="12" md="6">
+        <MudImage Src="@_userPhoto" Elevation="25" Height="300" />
+    </MudItem>
+    <MudItem xs="12" md="6">
+        <MudText Typo="Typo.h4">@_fullName</MudText>
+        <MudText Typo="Typo.subtitle1" Class="mt-5">@_jobTitle</MudText>
+    </MudItem>
+</MudGrid>
+
+<MudTabs ActivePanelIndexChanged="OnTabChangedAsync" Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
+    <MudTabPanel Text="Pay stub">
+        <MudGrid Class="mt-5 mb-10">
+            <MudItem xs="12" md="3">
+                <MudText Typo="Typo.subtitle1"><b>Wage:</b> @_wage</MudText>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudNumericField HideSpinButtons="true"
+                                 @bind-Value="_year"
+                                 Label="Choose a year"
+                                 Variant="Variant.Outlined"
+                                 Min="1900"
+                                 Max="DateTime.Now.Year">
+                </MudNumericField>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudSelect T="int"
+                           @bind-Value="_month"
+                           Label="Choose a month"
+                           Variant="Variant.Outlined">
+
+                    @for (int i = 1; i <= 12; i++)
+                    {
+                        var monthName = new DateTime(2000, i, 1).ToString("MMMM");
+                        <MudSelectItem Value="@i">@monthName</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudButton Variant="Variant.Filled" ButtonType="ButtonType.Submit" Color="Color.Primary" OnClick="GetPaystubButtonAsync">Show</MudButton>
+            </MudItem>
+        </MudGrid>
+
+        <MudGrid Class="mb-10">
+            <MudItem xs="12" md="6">
+                <MudStack>
+                    <MudDataGrid Items="@_earnings" FixedHeader="true" Height="400px">
+                        <Columns>
+                            <PropertyColumn Property="x => x.Name" Title="Earnings" />
+                            <PropertyColumn Property="x => x.Days" Title="Days" />
+                            <PropertyColumn Property="x => x.Hours" Title="Hours" />
+                            <PropertyColumn Property="x => x.Amount" Title="Current amount" />
+                        </Columns>
+                    </MudDataGrid>
+                    <MudText Align="Align.End" Typo="Typo.subtitle1"><b>Total earnings:</b></MudText>
+                    <MudText Align="Align.End">@_earnSum</MudText>
+                </MudStack>
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudStack>
+                    <MudDataGrid Items="@_deductions" FixedHeader="true" Height="400px">
+                        <Columns>
+                            <PropertyColumn Property="x => x.Name" Title="Deductions" />
+                            <PropertyColumn Property="x => x.Amount" Title="Current amount" />
+                        </Columns>
+                    </MudDataGrid>
+                    <MudText Align="Align.End" Typo="Typo.subtitle1"><b>Total deductions:</b></MudText>
+                    <MudText Align="Align.End" Class="mb-10">@_deductSum</MudText>
+
+                    <MudText Align="Align.End" Typo="Typo.h6"><b>Net pay:</b></MudText>
+                    <MudText Align="Align.End">@_income</MudText>
+                </MudStack>
+            </MudItem>
+        </MudGrid>
+    </MudTabPanel>
+
+    <MudTabPanel Text="Vacations">
+        <MudText Class="mt-10 mb-10"><b>Vacation accumulated: </b>@_vacationAccumulated</MudText>
+        <MudDataGrid Items="@_vacations" FixedHeader="true" Height="400px">
+            <Columns>
+                <PropertyColumn Property="x => x.DocId" Title="Document №" />
+                <PropertyColumn Property="x => x.DocDate" Title="Document date" />
+                <PropertyColumn Property="x => x.Name" Title="Name" />
+                <PropertyColumn Property="x => x.StartDate" Title="Start date" />
+                <PropertyColumn Property="x => x.EndDate" Title="End date" />
+                <PropertyColumn Property="x => x.Hours" Title="Hours" />
+            </Columns>
+        </MudDataGrid>
+    </MudTabPanel>
+
+    <MudTabPanel Text="Sick leave">
+        <MudDataGrid Items="@_sickLeaveList" FixedHeader="true" Height="400px">
+            <Columns>
+                <PropertyColumn Property="x => x.DocId" Title="Document №" />
+                <PropertyColumn Property="x => x.DocDate" Title="Document date" />
+                <PropertyColumn Property="x => x.Name" Title="Name" />
+                <PropertyColumn Property="x => x.StartDate" Title="Start date" />
+                <PropertyColumn Property="x => x.EndDate" Title="End date" />
+            </Columns>
+        </MudDataGrid>
+    </MudTabPanel>
+
+    <MudTabPanel Text="Reward and penalties">
+        <MudDataGrid Items="@_rewardPenalties" FixedHeader="true" Height="400px">
+            <Columns>
+                <PropertyColumn Property="x => x.DocId" Title="Document №" />
+                <PropertyColumn Property="x => x.DocDate" Title="Document date" />
+                <PropertyColumn Property="x => x.Type" Title="Type" />
+                <PropertyColumn Property="x => x.Description" Title="Description" />
+                <PropertyColumn Property="x => x.Details" Title="Details" />
+            </Columns>
+        </MudDataGrid>
+    </MudTabPanel>
+
+    <MudTabPanel Text="Courses">
+        <MudDataGrid Items="@_courses" FixedHeader="true" Height="400px">
+            <Columns>
+                <PropertyColumn Property="x => x.Name" Title="Name" />
+                <PropertyColumn Property="x => x.Type" Title="Type" />
+                <PropertyColumn Property="x => x.StartDate" Title="Start date" />
+                <PropertyColumn Property="x => x.EndDate" Title="End date" />
+                <PropertyColumn Property="x => x.Description" Title="Description" />
+            </Columns>
+        </MudDataGrid>
+    </MudTabPanel>
+
+    <MudTabPanel Text="Business trips">
+        <MudDataGrid Items="@_trips" FixedHeader="true" Height="400px">
+            <Columns>
+                <PropertyColumn Property="x => x.DocId" Title="Document №" />
+                <PropertyColumn Property="x => x.DocDate" Title="Document date" />
+                <PropertyColumn Property="x => x.StartDate" Title="Start date" />
+                <PropertyColumn Property="x => x.EndDate" Title="End date" />
+                <PropertyColumn Property="x => x.Destination" Title="Destination" />
+                <PropertyColumn Property="x => x.Description" Title="Description" />
+            </Columns>
+        </MudDataGrid>
+    </MudTabPanel>
+
+    <MudTabPanel Text="Certifications">
+        <MudDataGrid Items="@_certifications" FixedHeader="true" Height="400px">
+            <Columns>
+                <PropertyColumn Property="x => x.Name" Title="Name" />
+                <PropertyColumn Property="x => x.Date" Title="Date" />
+                <PropertyColumn Property="x => x.Description" Title="Description" />
+            </Columns>
+        </MudDataGrid>
+    </MudTabPanel>
+
+    <MudTabPanel Text="Clothing size">
+        <MudPaper Elevation="1" Class="pa-10">
+            @if (_clothingSize != null)
+            {
+                <MudGrid>
+                    <MudItem xs="12" sm="6">
+                        <MudStack Spacing="2">
+                            <MudText Typo="Typo.subtitle1"><b>Height</b></MudText>
+                            <MudText Class="mb-5">@_clothingSize.Height</MudText>
+
+                            <MudText Typo="Typo.subtitle1"><b>Clothing size</b></MudText>
+                            <MudText Class="mb-5">@_clothingSize.ClothSize</MudText>
+
+                            <MudText Typo="Typo.subtitle1"><b>Underwear size</b></MudText>
+                            <MudText Class="mb-5">@_clothingSize.UnderweaSize</MudText>
+
+                            <MudText Typo="Typo.subtitle1"><b>Headwear size</b></MudText>
+                            <MudText Class="mb-5">@_clothingSize.HeadwearSize</MudText>
+
+                            <MudText Typo="Typo.subtitle1"><b>Shoe size</b></MudText>
+                            <MudText>@_clothingSize.ShoeSize</MudText>
+
+                        </MudStack>
+                    </MudItem>
+                    <MudItem xs="12" sm="6">
+                        <MudStack Spacing="2">
+                            <MudText Typo="Typo.subtitle1"><b>Winter jacket size</b></MudText>
+                            <MudText Class="mb-5">@_clothingSize.WinterJacketSize</MudText>
+
+                            <MudText Typo="Typo.subtitle1"><b>Winter pants size</b></MudText>
+                            <MudText Class="mb-5">@_clothingSize.WinterPantsSize</MudText>
+
+                            <MudText Typo="Typo.subtitle1"><b>Winter suit size</b></MudText>
+                            <MudText Class="mb-5">@_clothingSize.WinterSuitSize</MudText>
+
+                            <MudText Typo="Typo.subtitle1"><b>Woolen suit size</b></MudText>
+                            <MudText Class="mb-5">@_clothingSize.WoolenSuitSize</MudText>
+
+                            <MudText Typo="Typo.subtitle1"><b>Canvas suit size</b></MudText>
+                            <MudText>@_clothingSize.CanvasSuitSize</MudText>
+                        </MudStack>
+                    </MudItem>
+                </MudGrid>
+            }
+        </MudPaper>
+    </MudTabPanel>
+</MudTabs>
+
+@code
+{
+    private int _year = DateTime.Now.Year;
+    private int _month = DateTime.Now.Month - 1;
+
+    private IEnumerable<Earning>? _earnings;
+    private IEnumerable<Deduction>? _deductions;
+
+    private decimal? _earnSum;
+    private decimal? _deductSum;
+    private decimal? _income;
+
+    private int _activeTabIndex = 0;
+
+    private IEnumerable<VacationModel>? _vacations;
+    private IEnumerable<SickLeaveModel>? _sickLeaveList;
+    private IEnumerable<RewardPenaltyModel>? _rewardPenalties;
+    private IEnumerable<CourseModel>? _courses;
+    private IEnumerable<BusinessTripModel>? _trips;
+    private IEnumerable<CertificationModel>? _certifications;
+
+    private ClothingSize? _clothingSize;
+    private string? _fullName;
+    private string? _jobTitle;
+    private string? _userPhoto;
+    private decimal? _wage;
+    private decimal? _vacationAccumulated;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (sessionService.IsAuthorized)
+        {
+            string workerId = sessionService.User!.WorkerId!;
+
+            _fullName = await access.GetFullNameAsync(workerId);
+            _jobTitle = await access.GetJobTitleAsync(workerId);
+            await PlacePhotoAsync(workerId);
+            await GetWageAsync(workerId);
+            await GetPaystubAsync(workerId);
+        }
+    }
+
+    private async Task PlacePhotoAsync(string workerId)
+    {
+        byte[]? img = await access.GetPictureAsync(workerId);
+
+        if (img is not null)
+        {
+            _userPhoto = $"data:image/jpeg;base64,{Convert.ToBase64String(img)}";
+        }
+    }
+
+    private async Task GetWageAsync(string workerId)
+    {
+        var lastDay = new DateTime(_year, _month, DateTime.DaysInMonth(_year, _month));
+        decimal workDeskId = await access.GetWorkDeskIdAsync(workerId, lastDay);
+        decimal grade = await access.GetJobGradeAsync(workerId, workDeskId, lastDay);
+        _wage = await access.GetWageAsync(workDeskId, grade, lastDay);
+    }
+
+    private async Task GetPaystubButtonAsync()
+    {
+        if (sessionService.IsAuthorized)
+        {
+            string workerId = sessionService.User!.WorkerId!;
+
+            await GetWageAsync(workerId);
+            await GetPaystubAsync(workerId);
+        }
+    }
+
+    private async Task GetPaystubAsync(string workerId)
+    {
+        string yearMonth = $"{_year}{_month:D2}";
+
+        _earnings = await access.GetEarningsAsync(workerId, yearMonth);
+        _deductions = await access.GetDeductionsAsync(workerId, yearMonth);
+
+        GetIncome();
+    }
+
+    private void GetIncome()
+    {
+        if (_earnings != null && _deductions != null)
+        {
+            _earnSum = _earnings.Sum((e) => e.Amount);
+            _deductSum = _deductions.Sum((d) => d.Amount);
+            _income = _earnSum - _deductSum;
+        }
+    }
+
+    private async Task OnTabChangedAsync(int index)
+    {
+        _activeTabIndex = index;
+        await LoadTabDataAsync();
+    }
+
+    private async Task LoadTabDataAsync()
+    {
+        if (sessionService.IsAuthorized)
+        {
+            string workerId = sessionService.User!.WorkerId!;
+
+            switch (_activeTabIndex)
+            {
+                case 0:
+                    await GetWageAsync(workerId);
+                    await GetPaystubAsync(workerId);
+                    break;
+
+                case 1:
+                    _vacationAccumulated = await access.GetVacationAccumulatedAsync(workerId);
+                    var vacations = await access.GetVacationsAsync(workerId);
+                    _vacations = vacations.Select((v) => (new VacationViewModel(v)).GetVacationModel()).ToList();
+                    break;
+
+                case 2:
+                    var sickLeaveList = await access.GetSickLeaveAsync(workerId);
+                    _sickLeaveList = sickLeaveList.Select((sl) => (new SickLeaveViewModel(sl)).GetSickLeaveModel()).ToList();
+                    break;
+
+                case 3:
+                    var rewardPenalties = await access.GetRewardPenaltiesAsync(workerId);
+                    _rewardPenalties = rewardPenalties.Select((rp) => (new RewardPenaltyViewModel(rp)).GetRewardPenaltyModel()).ToList();
+                    break;
+
+                case 4:
+                    var courses = await access.GetCoursesAsync(workerId);
+                    _courses = courses.Select((c) => (new CourseViewModel(c)).GetCourseModel()).ToList();
+                    break;
+
+                case 5:
+                    var trips = await access.GetBusinessTripsAsync(workerId);
+                    _trips = trips.Select((t) => (new BusinessTripViewModel(t)).GetBusinessTripModel()).ToList();
+                    break;
+
+                case 6:
+                    var certifications = await access.GetCertificationsAsync(workerId);
+                    _certifications = certifications.Select((c) => (new CertificationViewModel(c)).GetCertificationModel()).ToList();
+                    break;
+
+                case 7:
+                    _clothingSize = await access.GetClothingSizeAsync(workerId);
+                    break;
+            }
+        }
+    }
+}

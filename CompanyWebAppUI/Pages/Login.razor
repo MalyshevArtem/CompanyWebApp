@@ -1,0 +1,173 @@
+﻿@page "/login"
+@layout LoginLayout
+
+@inject NavigationManager navigation
+@inject UserSessionService sessionService
+@inject DatabaseAccess access
+
+@if (!_isAuthorized)
+{
+	@if (!_isAuthenticated)
+	{
+		<EditForm Model="_loginModel" OnValidSubmit="CheckLoginAsync" OnInvalidSubmit="ClearLoginError" Class="mt-20">
+			<DataAnnotationsValidator/>
+
+			<MudTextField @bind-Value="_loginModel.Id" Label="Your username" Variant="Variant.Outlined"></MudTextField>
+			<ValidationMessage Class="mb-5"  For="@(() => _loginModel.Id)" />
+
+			<MudTextField @bind-Value="_loginModel.Password" Label="Your password" InputType="InputType.Password" Variant="Variant.Outlined"></MudTextField>
+			<ValidationMessage Class="mb-5" For="@(() => _loginModel.Password)" />
+
+			<MudButton Variant="Variant.Filled" ButtonType="ButtonType.Submit" Color="Color.Primary" Disabled="@_isProcessing">Log in</MudButton>
+
+			@if (_loginFailed)
+			{
+				<MudText Align="Align.Center" Color="Color.Error">Your username or password is not valid</MudText>
+			}
+		</EditForm>
+	}
+
+	@if (_shouldChangePassword)
+	{
+		<MudTextField Class="mt-20" @bind-Value="_newPassword" Label="Provide your new password" Variant="Variant.Outlined"></MudTextField>
+		<MudTextField @bind-Value="_newPasswordCheck" Label="Repeat your new password" Variant="Variant.Outlined"></MudTextField>
+		<MudButton Variant="Variant.Filled" ButtonType="ButtonType.Submit" Color="Color.Primary" OnClick="ChangePasswordAsync">Submit</MudButton>
+
+		@switch (_changeFailed)
+		{
+			case 1:
+				<MudText Align="Align.Center" Color="Color.Error">Passwords must be identical!</MudText>
+				break;
+
+			case 2:
+				<MudText Align="Align.Center" Color="Color.Error">Password must be at least 8 characters long!</MudText>
+				break;
+
+			case 3:
+				<MudText Align="Align.Center" Color="Color.Error">Password must contain at least one digit!</MudText>
+				break;
+
+			case 4:
+				<MudText Align="Align.Center" Color="Color.Error">Password must contain at least one letter!</MudText>
+				break;
+
+			case 5:
+				<MudText Align="Align.Center" Color="Color.Error">Password must contain at least one uppercase letter!</MudText>
+				break;
+		}
+	}
+}
+
+
+@code
+{
+	private bool _isAuthorized;
+
+	private bool _isAuthenticated;
+	private LoginModel _loginModel = new LoginModel();
+	private bool _loginFailed;
+	private bool _isProcessing;
+
+	private bool _shouldChangePassword;
+	private int _changeFailed;
+	private string _newPassword = string.Empty;
+	private string _newPasswordCheck = string.Empty;
+
+	private UserModel? _user;
+
+	protected override async Task OnInitializedAsync()
+	{
+		await sessionService.LoadSessionAsync();
+		_isAuthorized = sessionService.IsAuthorized;
+
+		if (_isAuthorized)
+		{
+			navigation.NavigateTo("/");
+		}
+	}
+
+	public async Task CheckLoginAsync()
+	{
+		if (_isProcessing)
+		{
+			return;
+		}
+
+		_isProcessing = true;
+
+		try
+		{
+			User? user = await access.ValidateCredentialsAsync(_loginModel.Id!, _loginModel.Password!);
+
+			if (user is not null)
+			{
+				_user = (new UserViewModel(user)).GetUserModel();
+
+				if (_user.Temp == 1)
+				{
+					await sessionService.AuthorizeAsync(_user);
+					navigation.NavigateTo("/", true);
+				}
+
+				if (_user.Temp == 0)
+				{
+					_isAuthenticated = true;
+					_shouldChangePassword = true;
+				}
+			}
+			else
+			{
+				_loginFailed = true;
+			}
+		}
+		finally
+		{
+			_isProcessing = false;
+		}
+	}
+
+	private void ClearLoginError()
+	{
+		_loginFailed = false;
+	}
+
+	private async Task ChangePasswordAsync()
+	{
+		if (_newPassword != _newPasswordCheck)
+		{
+			_changeFailed = 1;
+			return;
+		}
+
+		if (_newPassword.Length < 8)
+		{
+			_changeFailed = 2;
+			return;
+		}
+
+		if (!_newPassword.Any(c => char.IsDigit(c)))
+		{
+			_changeFailed = 3;
+			return;
+		}
+
+		if (!_newPassword.Any(c => char.IsLetter(c)))
+		{
+			_changeFailed = 4;
+			return;
+		}
+
+		if (!_newPassword.Any(c => char.IsUpper(c)))
+		{
+			_changeFailed = 5;
+			return;
+		}
+
+		string id = _user!.Id!;
+		await access.ChangePasswordAsync(id, _newPassword);
+		_user.Temp = 1;
+
+		await sessionService.AuthorizeAsync(_user);
+		navigation.NavigateTo("/", true);
+	}
+}

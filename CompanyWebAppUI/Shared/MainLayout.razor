@@ -1,0 +1,59 @@
+﻿@inherits LayoutComponentBase
+
+@inject UserSessionService sessionService
+@inject NavigationManager navigation
+
+<MudThemeProvider />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+@if (_isAuthorized)
+{
+    <MudLayout>
+        <MudAppBar>
+            <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" OnClick="ToggleDrawer"></MudIconButton>
+            CompanyName
+            <MudSpacer/>
+            <MudButton Color="Color.Inherit" OnClick="Logout">Log out</MudButton>
+        </MudAppBar>
+
+        <MudDrawer @bind-Open="@_drawerOpened">
+            <MyNavMenu/>
+        </MudDrawer>
+        <MudMainContent>
+            <MudContainer MaxWidth="MaxWidth.Large">
+                @Body
+            </MudContainer>
+        </MudMainContent>
+    </MudLayout>
+}
+
+@code
+{
+    private bool _isAuthorized;
+    private bool _drawerOpened;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await sessionService.LoadSessionAsync();
+
+        _isAuthorized = sessionService.IsAuthorized;
+
+        if (!_isAuthorized)
+        {
+            navigation.NavigateTo("/login");
+        }
+    }
+
+    private async Task Logout()
+    {
+        await sessionService.LogoutAsync();
+        navigation.NavigateTo("/login");
+    }
+
+    private void ToggleDrawer()
+    {
+        _drawerOpened = !_drawerOpened;
+    }
+}
